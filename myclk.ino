@@ -9,7 +9,7 @@ int Buzzer = 4;
 int DIN = 5;
 int CS = 6;
 int CLK = 7;
-
+int lyl;
 int secnum = 0;
 int sec8num = 0;
 int inte = 3;
