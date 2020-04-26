@@ -13,10 +13,12 @@ int CLK = 7;
 int secnum = 0;
 int sec8num = 0;
 int inte = 3;
+int dispmode=0;
 bool Century = false;
 bool h12;
 bool PM;
 bool isShutdown = false;
+bool tab[5] = {false};
 byte year, month, date, DoW, hour, minute, second;
 byte heart1[8] = {0x00, 0x66, 0xFF, 0xFF, 0x7E, 0x3C, 0x18, 0x00};
 byte heart2[8] = {0x00, 0x00, 0x24, 0x7E, 0x3C, 0x18, 0x00, 0x00};
@@ -67,7 +69,7 @@ LedControl lc = LedControl(DIN, CLK, CS, 4);
 BlinkerButton btn_shutdown("btn-shutdown");
 BlinkerButton btn_reset("btn-reset");
 BlinkerSlider ran_inte("ran-inte");
-BlinkerTab Tab1("tab-ned");
+BlinkerTab Tab_state("tab-ned");
 
 void (*resetFunc)(void) = 0;
 
@@ -166,6 +168,55 @@ void ran_inte_callback(int32_t value)
 	}
 }
 
+void tab_state_callback(uint8_t tab_set)
+{
+	BLINKER_LOG("get tab set: ", tab_set);
+
+	switch (tab_set)
+	{
+	case BLINKER_CMD_TAB_0:
+		tab[0] = true;
+		dispmode = 0;
+		BLINKER_LOG("tab 0 set");
+		break;
+	case BLINKER_CMD_TAB_1:
+		tab[1] = true;
+		dispmode = 1;
+		BLINKER_LOG("tab 1 set");
+		break;
+	case BLINKER_CMD_TAB_2:
+		tab[2] = true;
+		dispmode = 2;
+		BLINKER_LOG("tab 2 set");
+		break;
+	case BLINKER_CMD_TAB_3:
+		tab[3] = true;
+		dispmode = 3;
+		BLINKER_LOG("tab 3 set");
+		break;
+	case BLINKER_CMD_TAB_4:
+		tab[4] = true;
+		dispmode = 4;
+		BLINKER_LOG("tab 4 set");
+		break;
+	default:
+		break;
+	}
+}
+
+void tab_state_feedback()
+{
+	for (uint8_t num = 0; num < 5; num++)
+	{
+		if (tab[num])
+		{
+			Tab_state.tab(num);
+			tab[num] = false;
+		}
+	}
+	Tab_state.print();
+}
+
 void dataRead(const String &data)
 {
 	BLINKER_LOG("Blinker readString: ", data);
@@ -204,11 +255,12 @@ void setup()
 		lc.clearDisplay(i);	   //清除显示
 	}
 	Wire.begin();
-	Blinker.begin();
+	Blinker.begin(3,2);
 	Blinker.attachData(dataRead);
 	btn_shutdown.attach(btn_shutdown_callback);
 	btn_reset.attach(btn_reset_callback);
 	ran_inte.attach(ran_inte_callback);
+	Tab_state.attach(tab_state_callback, tab_state_feedback);
 }
 
 void loop()
