@@ -14,10 +14,12 @@ int secnum = 0;
 int sec8num = 0;
 int inte = 3;
 int dispmode=0;
+int maintimer;
 bool Century = false;
 bool h12;
 bool PM;
 bool isShutdown = false;
+bool isBeep = false;
 bool tab[5] = {false};
 byte year, month, date, DoW, hour, minute, second;
 byte heart1[8] = {0x00, 0x66, 0xFF, 0xFF, 0x7E, 0x3C, 0x18, 0x00};
@@ -68,6 +70,7 @@ DS3231 Clock;
 LedControl lc = LedControl(DIN, CLK, CS, 4);
 BlinkerButton btn_shutdown("btn-shutdown");
 BlinkerButton btn_reset("btn-reset");
+BlinkerButton btn_beep("btn-beep");
 BlinkerSlider ran_inte("ran-inte");
 BlinkerTab Tab_state("tab-ned");
 
@@ -76,10 +79,12 @@ void (*resetFunc)(void) = 0;
 void beepBegin()
 {
 	digitalWrite(Buzzer, HIGH);
+	isBeep = true;
 }
 
 void beepEnd(){
 	digitalWrite(Buzzer, LOW);
+	isBeep = false;
 }
 
 void printByte(int num, byte character[])
@@ -126,7 +131,7 @@ void dispYear()
 
 void btn_shutdown_callback(const String &state)
 {
-	BLINKER_LOG("get button state: ", state);
+	BLINKER_LOG("btn_shutdown_callback: ", state);
 	if (state == "tap")
 	{
 		isShutdown = !isShutdown;
@@ -153,14 +158,21 @@ void btn_reset_callback(const String &state)
 	if (state == "tap" && !isShutdown)
 	{
 		resetFunc();
-		BLINKER_LOG("reset state: ", state);
+		BLINKER_LOG("btn_reset state: ", state);
 	}
+}
+
+void btn_beep_callback(const String &state){
+	if(!isBeep)
+		beepBegin();
+	else
+		beepEnd();
 }
 
 void ran_inte_callback(int32_t value)
 {
 	//digitalWrite(LED_BUILTIN, !digitalRead(LED_BUILTIN));
-	BLINKER_LOG("get slider value: ", value);
+	BLINKER_LOG("ran_inte_callback: ", value);
 	inte = value;
 	for (int i = 0; i < 4; i++)
 	{
@@ -170,7 +182,7 @@ void ran_inte_callback(int32_t value)
 
 void tab_state_callback(uint8_t tab_set)
 {
-	BLINKER_LOG("get tab set: ", tab_set);
+	BLINKER_LOG("tab_state_callback: ", tab_set);
 
 	switch (tab_set)
 	{
@@ -220,10 +232,7 @@ void tab_state_feedback()
 void dataRead(const String &data)
 {
 	BLINKER_LOG("Blinker readString: ", data);
-	if (data == "+CONNECTED")
-	{
-		uiUpdate();
-	}
+	uiUpdate();
 }
 
 void prtSec()
@@ -246,8 +255,7 @@ void setup()
 	pinMode(Buzzer, OUTPUT);
 	Serial.begin(115200);
 	BLINKER_DEBUG.stream(Serial);
-	uiUpdate();
-
+	maintimer = 0;
 	for (int i = 0; i < 4; i++)
 	{
 		lc.shutdown(i, false); //启动时，MAX72XX处于省电模式
@@ -259,6 +267,7 @@ void setup()
 	Blinker.attachData(dataRead);
 	btn_shutdown.attach(btn_shutdown_callback);
 	btn_reset.attach(btn_reset_callback);
+	btn_beep.attach(btn_beep_callback);
 	ran_inte.attach(ran_inte_callback);
 	Tab_state.attach(tab_state_callback, tab_state_feedback);
 }
@@ -271,4 +280,8 @@ void loop()
 	//dispYear();
 	prtSec();
 	delay(200);
+	//uiUpdate();
+	maintimer++;
+	if(maintimer==60)
+		maintimer = 0;
 }
